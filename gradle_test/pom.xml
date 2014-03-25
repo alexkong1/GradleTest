@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.alex.gradletestapp</groupId>
+    <artifactId>gradle_test</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>apk</packaging>
+	
+	    <properties>
+        <android-target-sdk>19</android-target-sdk>
+
+        <!-- dependency versions -->
+        <android.version>4.4_r1</android.version>
+        <android-support-v4.version>19.0.0</android-support-v4.version>
+        <android-appcompat-v7.version>19.0.0</android-appcompat-v7.version>
+
+        <!-- plugin versions -->
+        <android-maven-plugin.version>3.8.0</android-maven-plugin.version>
+        <maven-jarsigner-plugin.version>1.2</maven-jarsigner-plugin.version>
+
+    </properties>
+
+    <dependencies>
+
+        <!-- packaged dependencies -->
+        <dependency>
+            <groupId>android.support</groupId>
+            <artifactId>compatibility-v4</artifactId>
+            <version>${android-support-v4.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>android.support</groupId>
+            <artifactId>compatibility-v7-appcompat</artifactId>
+            <version>${android-appcompat-v7.version}</version>
+            <type>apklib</type>
+        </dependency>
+
+        <dependency>
+            <groupId>android.support</groupId>
+            <artifactId>compatibility-v7-appcompat</artifactId>
+            <version>${android-appcompat-v7.version}</version>
+            <type>jar</type>
+        </dependency>
+
+        <!-- provided dependencies -->
+        <dependency>
+            <groupId>android</groupId>
+            <artifactId>android</artifactId>
+            <version>${android.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+    </dependencies>
+	
+	<build>
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <!-- default java version in parent is 1.7, need to override for android development -->
+                <configuration>
+                    <source>1.6</source>
+                    <target>1.6</target>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                <artifactId>android-maven-plugin</artifactId>
+                <version>${android-maven-plugin.version}</version>
+
+                <!-- enables definition of package types (e.g. apk) by android-maven-plugin -->
+                <extensions>true</extensions>
+
+                <configuration>
+                    <androidManifestFile>${project.basedir}/AndroidManifest.xml</androidManifestFile>
+                    <sdk>
+                        <platform>${android-target-sdk}</platform>
+                    </sdk>
+
+                    <!-- uninstall existing app before deploying new one -->
+                    <undeployBeforeDeploy>true</undeployBeforeDeploy>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+    <profiles>
+        <profile>
+            <id>release</id>
+            <!-- activate this profile automatically when a release is done via the maven release plugin -->
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
+
+            <build>
+                <plugins>
+                    <!-- perform maven-jarsigner-plugin's sign and verify goals during the package phase -->
+                    <!-- see http://www.simpligility.com/2010/07/sign-zipalign-and-to-market-to-market-with-maven/ -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-jarsigner-plugin</artifactId>
+                        <version>${maven-jarsigner-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>signing</id>
+                                <goals>
+                                    <goal>sign</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <inherited>true</inherited>
+                                <configuration>
+                                    <removeExistingSignatures>true</removeExistingSignatures>
+                                    <includes>
+                                        <include>${project.build.directory}/${project.artifactId}-${project.version}.apk</include>
+                                    </includes>
+                                    <!-- these fitivity.sign.* properties used below are defined in settings.xml -->
+                                    <keystore>${fitivity.sign.keystore.path}</keystore>
+                                    <storepass>${fitivity.sign.keystore.password}</storepass>
+                                    <alias>${fitivity.sign.key.alias}</alias>
+                                    <keypass>${fitivity.sign.key.password}</keypass>
+                                    <verbose>true</verbose>
+                                    <arguments>
+                                        <argument>-sigalg</argument><argument>MD5withRSA</argument>
+                                        <argument>-digestalg</argument><argument>SHA1</argument>
+                                    </arguments>
+
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- see http://www.simpligility.com/2010/06/maven-android-plugin-with-zipalign-and-improved-verification/ and
+                         http://www.simpligility.com/2010/07/sign-zipalign-and-to-market-to-market-with-maven/ -->
+                    <plugin>
+                        <groupId>com.jayway.maven.plugins.android.generation2</groupId>
+                        <artifactId>android-maven-plugin</artifactId>
+                        <version>${android-maven-plugin.version}</version>
+                        <configuration>
+
+                            <manifest>
+                                <debuggable>false</debuggable>
+                            </manifest>
+
+                            <!-- Since the android-maven-pugin signs the apk by default with the debug key, we have to disable the
+                                 signing in the release profile explicitly. Otherwise we get an error from jarsigner, since in the
+                                 release profile, the apk is signed already via maven-jarsigner-plugin (see above). -->
+                            <sign>
+                                <debug>false</debug>
+                            </sign>
+
+                            <zipalign>
+                                <verbose>true</verbose>
+                                <!-- note: the input .apk file has already been signed by maven-jarsigner-plugin, see above -->
+                                <inputApk>${project.build.directory}/${project.artifactId}-${project.version}.apk</inputApk>
+                                <skip>false</skip>
+                            </zipalign>
+
+                            <release>true</release>
+
+                        </configuration>
+
+                        <executions>
+                            <!-- perform the zipalign goal during the package phase -->
+                            <execution>
+                                <id>alignApk</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>zipalign</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
+
+</project>

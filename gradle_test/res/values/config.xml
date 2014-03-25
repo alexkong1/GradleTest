@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="test_string">TEST REPLACEMENT STRING 12348009</string>
+    <string name="test_id">12345</string>
+
+</resources>
